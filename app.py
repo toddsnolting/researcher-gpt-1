@@ -17,32 +17,72 @@ import requests
 import json
 from langchain.schema import SystemMessage
 from fastapi import FastAPI
+import streamlit as st
 
 load_dotenv()
 brwoserless_api_key = os.getenv("BROWSERLESS_API_KEY")
 serper_api_key = os.getenv("SERP_API_KEY")
+serpstack_api_key = os.getenv("SERPSTACK_API_KEY")
+
+print("BROWSERLESS_API_KEY:", brwoserless_api_key)
+print("SERP_API_KEY:", serper_api_key)
+print("SERPSTACK_API_KEY:", serpstack_api_key)
+
 
 # 1. Tool for search
 
+## This is the new code, using google search api and costly serpstack.com api
 
 def search(query):
-    url = "https://google.serper.dev/search"
-
-    payload = json.dumps({
-        "q": query
-    })
-
-    headers = {
-        'X-API-KEY': serper_api_key,
-        'Content-Type': 'application/json'
+    url = "http://api.serpstack.com/search"
+    params = {
+        "access_key": serpstack_api_key,
+        "query": query
     }
 
-    response = requests.request("POST", url, headers=headers, data=payload)
+    response = requests.get(url, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        # Process the search results as needed
+
+        # # Example: print the titles and links of the search results
+        # for result in data.get("organic_results", []):
+        #     title = result.get("title")
+        #     link = result.get("link")
+        #     print(f"Title: {title}")
+        #     print(f"Link: {link}")
+    else:
+        print("Error:", response.status_code)
 
     print(response.text)
 
     return response.text
 
+# search("What is the best way to lose weight?")
+
+
+## This is the old code, using google search api and costly serper.dev api but better results for sure
+
+# def search(query):
+#     url = "https://google.serper.dev/search"
+
+#     payload = json.dumps({
+#         "q": query
+#     })
+
+#     headers = {
+#         'X-API-KEY': serper_api_key,
+#         'Content-Type': 'application/json'
+#     }
+
+#     response = requests.request("POST", url, headers=headers, data=payload)
+
+#     print(response.text)
+
+#     return response.text
+
+# search("What is the best way to lose weight?")
 
 # 2. Tool for scraping
 def scrape_website(objective: str, url: str):
@@ -127,7 +167,9 @@ class ScrapeWebsiteTool(BaseTool):
 
     def _arun(self, url: str):
         raise NotImplementedError("error here")
+    
 
+# scrape_website("What is the best way to lose weight?", "https://www.healthline.com/nutrition/26-evidence-based-weight-loss-tips")
 
 # 3. Create langchain agent with the tools above
 tools = [
@@ -172,35 +214,37 @@ agent = initialize_agent(
 
 
 # 4. Use streamlit to create a web app
-# def main():
-#     st.set_page_config(page_title="AI research agent", page_icon=":bird:")
+def main():
+    st.set_page_config(page_title="AI research agent", page_icon=":bird:")
 
-#     st.header("AI research agent :bird:")
-#     query = st.text_input("Research goal")
+    st.header("AI research agent :bird:")
+    query = st.text_input("Research goal")
 
-#     if query:
-#         st.write("Doing research for ", query)
+    if query:
+        st.write("Doing research for ", query)
 
-#         result = agent({"input": query})
+        result = agent({"input": query})
 
-#         st.info(result['output'])
-
-
-# if __name__ == '__main__':
-#     main()
+        st.info(result['output'])
 
 
-# 5. Set this as an API endpoint via FastAPI
-app = FastAPI()
+if __name__ == '__main__':
+    main()
+
+## To run: streamlit run c:/Users/aj_gq/Documents/GitHub/researcher-gpt/app.py ##
 
 
-class Query(BaseModel):
-    query: str
+# # 5. Set this as an API endpoint via FastAPI
+# app = FastAPI()
 
 
-@app.post("/")
-def researchAgent(query: Query):
-    query = query.query
-    content = agent({"input": query})
-    actual_content = content['output']
-    return actual_content
+# class Query(BaseModel):
+#     query: str
+
+
+# @app.post("/")
+# def researchAgent(query: Query):
+#     query = query.query
+#     content = agent({"input": query})
+#     actual_content = content['output']
+#     return actual_content
